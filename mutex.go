@@ -9,9 +9,9 @@ package ddbsync
 
 import (
 	"log"
+	"strings"
 	"sync"
 	"time"
-	"strings"
 )
 
 // A Mutex is a mutual exclusion lock.
