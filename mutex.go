@@ -11,6 +11,7 @@ import (
 	"log"
 	"sync"
 	"time"
+	"strings"
 )
 
 // A Mutex is a mutual exclusion lock.
@@ -62,6 +63,10 @@ func (m *Mutex) Unlock() {
 func (m *Mutex) PruneExpired() {
 	item, err := m.db.Get(m.Name)
 	if err != nil {
+		if strings.Contains(err.Error(), "No item for Name") {
+			// This is normal behaviour, but DynomoDB reports no item as an error
+			return
+		}
 		log.Printf("PruneExpired. error = %v", err)
 		return
 	}
