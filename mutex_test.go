@@ -78,6 +78,7 @@ func TestUnlock(t *testing.T) {
 	db.On("Delete", VALID_MUTEX_NAME).Return(nil)
 
 	underTest.Unlock()
+	db.AssertExpectations(t)
 }
 
 func TestUnlockGivesUpAfterThreeAttempts(t *testing.T) {
