@@ -34,10 +34,6 @@ func TestDBSuite(t *testing.T) {
 	suite.Run(t, new(DBSuite))
 }
 
-func (s *DBSuite) SetupSuite() {
-
-}
-
 func (s *DBSuite) SetupTest() {
 	s.mock = new(mocks.AWSDynamoer)
 	s.db = NewDatabase(DB_VALID_TABLE_NAME, DB_VALID_REGION, DB_VALID_NO_ENDPOINT, DB_VALID_DISABLE_SSL_NO)

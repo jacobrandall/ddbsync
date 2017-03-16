@@ -1,35 +1,51 @@
-hash: c8eda54028fd67096ca88a85b938c46dab40d22388184d64f9a2a7636e4e9003
-updated: 2016-05-26T14:30:42.755422873+01:00
+hash: 409849d8da430594596e9f74459552b0d5ec33035a365024c7acf52168036c21
+updated: 2017-03-16T11:47:11.109653748Z
 imports:
 - name: github.com/aws/aws-sdk-go
-  version: c3505486c9bc67389575587c2154500864883384
+  version: 695fe24acaf9afe80b0ce261d4637f42ba0b4c7d
   subpackages:
   - aws
-  - internal/endpoints
-  - internal/protocol/json/jsonutil
-  - internal/protocol/jsonrpc
-  - internal/protocol/rest
-  - internal/signer/v4
-  - service/dynamodb
   - aws/awserr
-  - aws/credentials
   - aws/awsutil
   - aws/client
   - aws/client/metadata
+  - aws/corehandlers
+  - aws/credentials
+  - aws/credentials/ec2rolecreds
+  - aws/credentials/endpointcreds
+  - aws/credentials/stscreds
+  - aws/defaults
+  - aws/ec2metadata
+  - aws/endpoints
   - aws/request
-  - private/protocol/jsonrpc
-  - private/signer/v4
-  - private/waiter
+  - aws/session
+  - aws/signer/v4
+  - private/protocol
   - private/protocol/json/jsonutil
+  - private/protocol/jsonrpc
+  - private/protocol/query
+  - private/protocol/query/queryutil
   - private/protocol/rest
+  - private/protocol/xml/xmlutil
+  - private/waiter
+  - service/dynamodb
+  - service/sts
+- name: github.com/davecgh/go-spew
+  version: 346938d642f2ec3594ed81d874461961cd0faa76
+  subpackages:
+  - spew
 - name: github.com/go-ini/ini
-  version: 12f418cc7edc5a618a51407b7ac1f1f512139df3
+  version: c437d20015c2ab6454b7a66a13109ff0fb99e17a
 - name: github.com/jmespath/go-jmespath
-  version: 0b12d6b521d83fc7f755e7cfc1b1fbdd35a01a74
+  version: bd40a432e4c76585ef6b72d3fd96fb9b6dc7b68d
+- name: github.com/pmezard/go-difflib
+  version: d8ed2627bdf02c080bf22230dbb337003b7aba2d
+  subpackages:
+  - difflib
 - name: github.com/stretchr/objx
   version: cbeaeb16a013161a98496fad62933b1d21786672
 - name: github.com/stretchr/testify
-  version: c478a808a1b37e10c82f71a2172728f8742bad51
+  version: 69483b4bd14f5845b5a1e55bca19e954e827f1d0
   subpackages:
   - assert
   - mock
@@ -37,4 +53,4 @@ imports:
   - suite
 - name: github.com/vaughan0/go-ini
   version: a98ad7ee00ec53921f08832bc06ecf7fd600e6a1
-devImports: []
+testImports: []

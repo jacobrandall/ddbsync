@@ -12,14 +12,18 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
 )
 
 // A Mutex is a mutual exclusion lock.
 // Mutexes can be created as part of other structures.
 type Mutex struct {
-	Name string
-	TTL  int64
-	db   DBer
+	Name              string
+	TTL               int64
+	LockReattemptWait time.Duration
+	db                DBer
 }
 
 var _ sync.Locker = (*Mutex)(nil) // Forces compile time checking of the interface
@@ -43,16 +47,32 @@ func (m *Mutex) Lock() {
 		if err == nil {
 			return
 		}
+
+		// Log the error if it's not one we expect to see
+		if awsErr, ok := err.(awserr.Error); ok {
+			switch awsErr.Code() {
+			case dynamodb.ErrCodeConditionalCheckFailedException: // Something already holds the mutex
+			default:
+				log.Printf("Lock. AWS error: %v", awsErr.Message())
+			}
+		} else {
+			log.Printf("Lock. Error: %v", err)
+		}
+
+		time.Sleep(m.LockReattemptWait)
 	}
 }
 
 // Unlock will delete an item in a DynamoDB table.
+// If for some reason we can't (Dynamo is down / TTL of lock expired and something else deleted it) then
+// we give up after a few attempts and let the TTL catch it (if it hasn't already).
 func (m *Mutex) Unlock() {
-	for {
+	for i := 0; i < 3; i++ {
 		err := m.db.Delete(m.Name)
 		if err == nil {
 			return
 		}
+		log.Printf("Unlock. Error: %v", err)
 	}
 }
 

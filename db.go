@@ -45,18 +45,17 @@ type AWSDynamoer interface {
 
 func (db *database) Put(name string, created int64) error {
 	i := map[string]*dynamodb.AttributeValue{
-		"Name": &dynamodb.AttributeValue{
+		"Name": {
 			S: aws.String(name),
 		},
-		"Created": &dynamodb.AttributeValue{
+		"Created": {
 			N: aws.String(strconv.FormatInt(created, 10)),
 		},
 	}
 
-	no := false
 	e := map[string]*dynamodb.ExpectedAttributeValue{
-		"Name": &dynamodb.ExpectedAttributeValue{
-			Exists: &no,
+		"Name": {
+			Exists: aws.Bool(false),
 		},
 	}
 
@@ -65,29 +64,25 @@ func (db *database) Put(name string, created int64) error {
 		Item:      i,
 		Expected:  e,
 	}
-	_, err := db.client.PutItem(pit)
-	if err != nil {
-		return err
-	}
 
-	return nil
+	_, err := db.client.PutItem(pit)
+	return err
 }
 
 func (db *database) Get(name string) (*models.Item, error) {
 	kc := map[string]*dynamodb.Condition{
-		"Name": &dynamodb.Condition{
+		"Name": {
 			AttributeValueList: []*dynamodb.AttributeValue{
-				&dynamodb.AttributeValue{
+				{
 					S: aws.String(name),
 				},
 			},
 			ComparisonOperator: aws.String("EQ"),
 		},
 	}
-	yes := true
 	qi := &dynamodb.QueryInput{
 		TableName:       aws.String(db.tableName),
-		ConsistentRead:  &yes,
+		ConsistentRead:  aws.Bool(true),
 		Select:          aws.String("SPECIFIC_ATTRIBUTES"),
 		AttributesToGet: []*string{aws.String("Name"), aws.String("Created")},
 		KeyConditions:   kc,
@@ -101,9 +96,9 @@ func (db *database) Get(name string) (*models.Item, error) {
 	// Make sure that no or 1 item is returned from DynamoDB
 	if qo.Count != nil {
 		if *qo.Count == 0 {
-			return nil, errors.New(fmt.Sprintf("No item for Name, %s", name))
+			return nil, fmt.Errorf("No item for Name, %s", name)
 		} else if *qo.Count > 1 {
-			return nil, errors.New(fmt.Sprintf("Expected only 1 item returned from Dynamo, got %d", *qo.Count))
+			return nil, fmt.Errorf("Expected only 1 item returned from Dynamo, got %d", *qo.Count)
 		}
 	} else {
 		return nil, errors.New("Count not returned")
@@ -135,7 +130,7 @@ func (db *database) Get(name string) (*models.Item, error) {
 
 func (db *database) Delete(name string) error {
 	k := map[string]*dynamodb.AttributeValue{
-		"Name": &dynamodb.AttributeValue{
+		"Name": {
 			S: aws.String(name),
 		},
 	}
@@ -144,9 +139,5 @@ func (db *database) Delete(name string) error {
 		Key:       k,
 	}
 	_, err := db.client.DeleteItem(dii)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
