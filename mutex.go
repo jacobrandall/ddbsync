@@ -29,11 +29,12 @@ type Mutex struct {
 var _ sync.Locker = (*Mutex)(nil) // Forces compile time checking of the interface
 
 // Mutex constructor
-func NewMutex(name string, ttl int64, db DBer) *Mutex {
+func NewMutex(name string, ttl int64, db DBer, lockReattemptWait time.Duration) *Mutex {
 	return &Mutex{
-		Name: name,
-		TTL:  ttl,
-		db:   db,
+		Name:              name,
+		TTL:               ttl,
+		db:                db,
+		LockReattemptWait: lockReattemptWait,
 	}
 }
 
@@ -48,14 +49,9 @@ func (m *Mutex) Lock() {
 			return
 		}
 
-		// Log the error if it's not one we expect to see
-		if awsErr, ok := err.(awserr.Error); ok {
-			switch awsErr.Code() {
-			case dynamodb.ErrCodeConditionalCheckFailedException: // Something already holds the mutex
-			default:
-				log.Printf("Lock. AWS error: %v", awsErr.Message())
-			}
-		} else {
+		// Log the error unless it's related to the mutex already being held
+		awsErr, ok := err.(awserr.Error)
+		if !ok || awsErr.Code() != dynamodb.ErrCodeConditionalCheckFailedException {
 			log.Printf("Lock. Error: %v", err)
 		}
 

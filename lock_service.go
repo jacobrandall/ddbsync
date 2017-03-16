@@ -2,10 +2,11 @@ package ddbsync
 
 import (
 	"sync"
+	"time"
 )
 
 type LockServicer interface {
-	NewLock(string, int64) sync.Locker
+	NewLock(string, int64, time.Duration) sync.Locker
 }
 
 type LockService struct {
@@ -21,6 +22,6 @@ func NewLockService(tableName string, region string, endpoint string, disableSSL
 }
 
 // Create a new Lock/Mutex with a particular key and timeout
-func (l *LockService) NewLock(name string, ttl int64) sync.Locker {
-	return NewMutex(name, ttl, l.db)
+func (l *LockService) NewLock(name string, ttl int64, lockReattemptWait time.Duration) sync.Locker {
+	return NewMutex(name, ttl, l.db, lockReattemptWait)
 }

@@ -3,6 +3,7 @@ package ddbsync
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
@@ -10,13 +11,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/zencoder/ddbsync/mocks"
 	"github.com/zencoder/ddbsync/models"
-	"time"
 )
 
 const (
-	VALID_MUTEX_NAME    string = "mut-test"
-	VALID_MUTEX_TTL     int64  = 4
-	VALID_MUTEX_CREATED int64  = 1424385592
+	VALID_MUTEX_NAME       string        = "mut-test"
+	VALID_MUTEX_TTL        int64         = 4
+	VALID_MUTEX_CREATED    int64         = 1424385592
+	VALID_MUTEX_RETRY_WAIT time.Duration = 1 * time.Millisecond
 )
 
 var lockHeldErr = awserr.New(
@@ -33,7 +34,7 @@ var dynamoInternalErr = awserr.New(
 
 func TestNew(t *testing.T) {
 	db := new(mocks.DBer)
-	underTest := NewMutex(VALID_MUTEX_NAME, VALID_MUTEX_TTL, db)
+	underTest := NewMutex(VALID_MUTEX_NAME, VALID_MUTEX_TTL, db, VALID_MUTEX_RETRY_WAIT)
 
 	require.Equal(t, VALID_MUTEX_NAME, underTest.Name)
 	require.Equal(t, VALID_MUTEX_TTL, underTest.TTL)
@@ -41,7 +42,7 @@ func TestNew(t *testing.T) {
 
 func TestLock(t *testing.T) {
 	db := new(mocks.DBer)
-	underTest := NewMutex(VALID_MUTEX_NAME, VALID_MUTEX_TTL, db)
+	underTest := NewMutex(VALID_MUTEX_NAME, VALID_MUTEX_TTL, db, VALID_MUTEX_RETRY_WAIT)
 
 	db.On("Put", VALID_MUTEX_NAME, mock.AnythingOfType("int64")).Return(nil)
 	db.On("Get", VALID_MUTEX_NAME).Return(&models.Item{Name: VALID_MUTEX_NAME, Created: VALID_MUTEX_CREATED}, nil)
@@ -53,8 +54,7 @@ func TestLock(t *testing.T) {
 
 func TestLockWaitsBeforeRetrying(t *testing.T) {
 	db := new(mocks.DBer)
-	underTest := NewMutex(VALID_MUTEX_NAME, VALID_MUTEX_TTL, db)
-	underTest.LockReattemptWait = 300 * time.Millisecond
+	underTest := NewMutex(VALID_MUTEX_NAME, VALID_MUTEX_TTL, db, 300*time.Millisecond)
 
 	db.On("Get", VALID_MUTEX_NAME).Return(&models.Item{Name: VALID_MUTEX_NAME, Created: VALID_MUTEX_CREATED}, nil)
 	db.On("Delete", VALID_MUTEX_NAME).Return(nil)
@@ -73,7 +73,7 @@ func TestLockWaitsBeforeRetrying(t *testing.T) {
 
 func TestUnlock(t *testing.T) {
 	db := new(mocks.DBer)
-	underTest := NewMutex(VALID_MUTEX_NAME, VALID_MUTEX_TTL, db)
+	underTest := NewMutex(VALID_MUTEX_NAME, VALID_MUTEX_TTL, db, VALID_MUTEX_RETRY_WAIT)
 
 	db.On("Delete", VALID_MUTEX_NAME).Return(nil)
 
@@ -83,7 +83,7 @@ func TestUnlock(t *testing.T) {
 
 func TestUnlockGivesUpAfterThreeAttempts(t *testing.T) {
 	db := new(mocks.DBer)
-	underTest := NewMutex(VALID_MUTEX_NAME, VALID_MUTEX_TTL, db)
+	underTest := NewMutex(VALID_MUTEX_NAME, VALID_MUTEX_TTL, db, VALID_MUTEX_RETRY_WAIT)
 
 	db.On("Delete", VALID_MUTEX_NAME).Times(3).Return(errors.New("DynamoDB is down!"))
 
@@ -93,7 +93,7 @@ func TestUnlockGivesUpAfterThreeAttempts(t *testing.T) {
 
 func TestPruneExpired(t *testing.T) {
 	db := new(mocks.DBer)
-	underTest := NewMutex(VALID_MUTEX_NAME, VALID_MUTEX_TTL, db)
+	underTest := NewMutex(VALID_MUTEX_NAME, VALID_MUTEX_TTL, db, VALID_MUTEX_RETRY_WAIT)
 
 	db.On("Get", VALID_MUTEX_NAME).Return(&models.Item{Name: VALID_MUTEX_NAME, Created: VALID_MUTEX_CREATED}, nil)
 	db.On("Delete", VALID_MUTEX_NAME).Return(nil)
@@ -104,7 +104,7 @@ func TestPruneExpired(t *testing.T) {
 
 func TestPruneExpiredError(t *testing.T) {
 	db := new(mocks.DBer)
-	underTest := NewMutex(VALID_MUTEX_NAME, VALID_MUTEX_TTL, db)
+	underTest := NewMutex(VALID_MUTEX_NAME, VALID_MUTEX_TTL, db, VALID_MUTEX_RETRY_WAIT)
 
 	db.On("Get", VALID_MUTEX_NAME).Return((*models.Item)(nil), errors.New("Get Error"))
 
