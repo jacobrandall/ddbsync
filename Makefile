@@ -1,23 +1,28 @@
-GO15VENDOREXPERIMENT := 1
 COVERAGEDIR = coverage
 ifdef CIRCLE_ARTIFACTS
   COVERAGEDIR = $(CIRCLE_ARTIFACTS)
 endif
 
+ifdef VERBOSE
+V = -v
+else
+.SILENT:
+endif
+
 all: build test cover
+
 install-deps:
 	glide install
 build:
-	if [ ! -d bin ]; then mkdir bin; fi
+	mkdir -p bin
 	go build -v -o bin/ddbsync
 fmt:
 	go fmt ./...
 test:
-	if [ ! -d coverage ]; then mkdir coverage; fi
-	go test -v ./ -race -cover -coverprofile=$(COVERAGEDIR)/ddbsync.coverprofile
+	mkdir -p coverage
+	go test $(V) ./ -race -cover -coverprofile=$(COVERAGEDIR)/ddbsync.coverprofile
 cover:
 	go tool cover -html=$(COVERAGEDIR)/ddbsync.coverprofile -o $(COVERAGEDIR)/ddbsync.html
-tc: test cover
 coveralls:
 	gover $(COVERAGEDIR) $(COVERAGEDIR)/coveralls.coverprofile
 	goveralls -coverprofile=$(COVERAGEDIR)/coveralls.coverprofile -service=circle-ci -repotoken=$(COVERALLS_TOKEN)
