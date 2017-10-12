@@ -45,7 +45,6 @@ func main() {
 
 ```bash
 $ git clone http://github.com/zencoder/ddbsync && cd ddbsync
-$ export GO15VENDOREXPERIMENT=1
 $ glide install
 $ go run main.go
 ```
