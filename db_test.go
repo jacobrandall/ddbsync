@@ -15,9 +15,6 @@ import (
 
 const (
 	DB_VALID_TABLE_NAME     string = "TestLockTable"
-	DB_VALID_REGION         string = "us-west-2"
-	DB_VALID_NO_ENDPOINT    string = ""
-	DB_VALID_DISABLE_SSL_NO bool   = false
 	DB_VALID_NAME           string = "db-name"
 	DB_VALID_CREATED        int64  = 1424385592
 	DB_VALID_CREATED_STRING string = "1424385592"
