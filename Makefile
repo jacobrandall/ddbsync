@@ -30,5 +30,3 @@ clean:
 	go clean
 	rm -f bin/ddbsync
 	rm -rf coverage/
-gen-mocks:
-	mockery -name DBer

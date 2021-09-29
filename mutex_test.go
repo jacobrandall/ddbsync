@@ -9,7 +9,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/zencoder/ddbsync/mocks"
 )
 
 const (
@@ -25,20 +24,26 @@ var dynamoInternalErr = awserr.New(
 	errors.New("Dynamo Internal Server Error"),
 )
 
-type mockDBWrapper struct{ *mocks.DBer }
+type mockDB struct{ mock.Mock }
 
-func (w mockDBWrapper) OnAcquire() *mock.Call {
-	return w.On("Acquire", VALID_MUTEX_NAME, VALID_MUTEX_TTL)
+func (m *mockDB) OnAcquire() *mock.Call {
+	return m.On("Acquire", VALID_MUTEX_NAME, VALID_MUTEX_TTL)
 }
-func (w mockDBWrapper) OnDelete() *mock.Call {
-	return w.On("Delete", VALID_MUTEX_NAME)
+func (m *mockDB) OnDelete() *mock.Call {
+	return m.On("Delete", VALID_MUTEX_NAME)
+}
+func (m *mockDB) Acquire(name string, ttl time.Duration) error {
+	return m.Called(name, ttl).Error(0)
+}
+func (m *mockDB) Delete(name string) error {
+	return m.Called(name).Error(0)
 }
 
-func newMockedMutex() (*Mutex, mockDBWrapper) {
-	db := &mocks.DBer{}
+func newMockedMutex() (*Mutex, *mockDB) {
+	db := &mockDB{}
 	mutex := NewMutex(VALID_MUTEX_NAME, VALID_MUTEX_TTL, db)
 	mutex.ReattemptWait = VALID_MUTEX_RETRY_WAIT
-	return mutex, mockDBWrapper{db}
+	return mutex, db
 }
 
 func TestNew(t *testing.T) {
