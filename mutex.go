@@ -13,10 +13,13 @@ import (
 	"time"
 )
 
-var (
+const (
 	DefaultReattemptWait = time.Second
 	DefaultCutoff        = 2 * time.Minute
-	ErrReachedCutoff     = errors.New("reached cutoff time")
+)
+
+var (
+	ErrReachedCutoff = errors.New("reached cutoff time")
 	// Forces compile time checking of the interface
 	_ ErrLocker = (*Mutex)(nil)
 )
