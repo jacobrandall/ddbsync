@@ -1,22 +1,30 @@
 package ddbsync
 
 import (
-	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
-const LOCK_SERVICE_VALID_MUTEX_NAME string = "mut-test"
-const LOCK_SERVICE_VALID_MUTEX_TTL int64 = 4
-const LOCK_SERVICE_VALID_MUTEX_RETRY_WAIT time.Duration = 5 * time.Second
-
 func TestNewLock(t *testing.T) {
-	ls := &LockService{}
-	m := ls.NewLock(LOCK_SERVICE_VALID_MUTEX_NAME, LOCK_SERVICE_VALID_MUTEX_TTL, LOCK_SERVICE_VALID_MUTEX_RETRY_WAIT)
-
-	require.NotNil(t, ls)
-	require.NotNil(t, m)
-	require.IsType(t, &LockService{}, ls)
-	require.IsType(t, &Mutex{}, m)
-	require.Equal(t, &Mutex{Name: LOCK_SERVICE_VALID_MUTEX_NAME, TTL: LOCK_SERVICE_VALID_MUTEX_TTL, LockReattemptWait: LOCK_SERVICE_VALID_MUTEX_RETRY_WAIT}, m)
+	const (
+		name      = "mut-test"
+		ttl       = 4 * time.Second
+		retryWait = 5 * time.Second
+		cutoff    = 6 * time.Second
+	)
+	var (
+		require = require.New(t)
+		ls      = &LockService{}
+		m       = ls.NewLock(name, ttl, retryWait, cutoff)
+	)
+	require.NotNil(m)
+	require.IsType(&Mutex{}, m)
+	require.Equal(&Mutex{
+		Name:          name,
+		TTL:           ttl,
+		ReattemptWait: retryWait,
+		Cutoff:        cutoff,
+	}, m)
 }

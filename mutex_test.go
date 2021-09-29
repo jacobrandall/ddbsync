@@ -10,20 +10,13 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/zencoder/ddbsync/mocks"
-	"github.com/zencoder/ddbsync/models"
 )
 
 const (
-	VALID_MUTEX_NAME       string        = "mut-test"
-	VALID_MUTEX_TTL        int64         = 4
-	VALID_MUTEX_CREATED    int64         = 1424385592
-	VALID_MUTEX_RETRY_WAIT time.Duration = 1 * time.Millisecond
-)
-
-var lockHeldErr = awserr.New(
-	dynamodb.ErrCodeConditionalCheckFailedException,
-	"Conditional Check Failed",
-	errors.New("Conditional Check Failed"),
+	VALID_MUTEX_NAME       = "mut-test"
+	VALID_MUTEX_TTL        = 4 * time.Second
+	VALID_MUTEX_CREATED    = 1424385592
+	VALID_MUTEX_RETRY_WAIT = 1 * time.Millisecond
 )
 
 var dynamoInternalErr = awserr.New(
@@ -32,82 +25,84 @@ var dynamoInternalErr = awserr.New(
 	errors.New("Dynamo Internal Server Error"),
 )
 
-func TestNew(t *testing.T) {
-	db := new(mocks.DBer)
-	underTest := NewMutex(VALID_MUTEX_NAME, VALID_MUTEX_TTL, db, VALID_MUTEX_RETRY_WAIT)
+type mockDBWrapper struct{ *mocks.DBer }
 
+func (w mockDBWrapper) OnAcquire() *mock.Call {
+	return w.On("Acquire", VALID_MUTEX_NAME, VALID_MUTEX_TTL)
+}
+func (w mockDBWrapper) OnDelete() *mock.Call {
+	return w.On("Delete", VALID_MUTEX_NAME)
+}
+
+func newMockedMutex() (*Mutex, mockDBWrapper) {
+	db := &mocks.DBer{}
+	mutex := NewMutex(VALID_MUTEX_NAME, VALID_MUTEX_TTL, db)
+	mutex.ReattemptWait = VALID_MUTEX_RETRY_WAIT
+	return mutex, mockDBWrapper{db}
+}
+
+func TestNew(t *testing.T) {
+	underTest, _ := newMockedMutex()
 	require.Equal(t, VALID_MUTEX_NAME, underTest.Name)
 	require.Equal(t, VALID_MUTEX_TTL, underTest.TTL)
 }
 
 func TestLock(t *testing.T) {
-	db := new(mocks.DBer)
-	underTest := NewMutex(VALID_MUTEX_NAME, VALID_MUTEX_TTL, db, VALID_MUTEX_RETRY_WAIT)
+	underTest, db := newMockedMutex()
+	defer db.AssertExpectations(t)
 
-	db.On("Put", VALID_MUTEX_NAME, mock.AnythingOfType("int64")).Return(nil)
-	db.On("Get", VALID_MUTEX_NAME).Return(&models.Item{Name: VALID_MUTEX_NAME, Created: VALID_MUTEX_CREATED}, nil)
-	db.On("Delete", VALID_MUTEX_NAME).Return(nil)
+	db.OnAcquire().Return(nil)
 
-	underTest.Lock()
-	db.AssertExpectations(t)
+	require.NoError(t, underTest.Lock())
 }
 
 func TestLockWaitsBeforeRetrying(t *testing.T) {
-	db := new(mocks.DBer)
-	underTest := NewMutex(VALID_MUTEX_NAME, VALID_MUTEX_TTL, db, 300*time.Millisecond)
+	underTest, db := newMockedMutex()
+	defer db.AssertExpectations(t)
+	underTest.ReattemptWait = 300 * time.Millisecond
 
-	db.On("Get", VALID_MUTEX_NAME).Return(&models.Item{Name: VALID_MUTEX_NAME, Created: VALID_MUTEX_CREATED}, nil)
-	db.On("Delete", VALID_MUTEX_NAME).Return(nil)
-	db.On("Put", VALID_MUTEX_NAME, mock.AnythingOfType("int64")).Once().Return(lockHeldErr)
-	db.On("Put", VALID_MUTEX_NAME, mock.AnythingOfType("int64")).Once().Return(dynamoInternalErr)
-	db.On("Put", VALID_MUTEX_NAME, mock.AnythingOfType("int64")).Once().Return(errors.New("Dynamo Glitch"))
-	db.On("Put", VALID_MUTEX_NAME, mock.AnythingOfType("int64")).Once().Return(nil)
+	db.OnAcquire().Once().Return(ErrLocked)
+	db.OnAcquire().Once().Return(dynamoInternalErr)
+	db.OnAcquire().Once().Return(errors.New("Dynamo Glitch"))
+	db.OnAcquire().Once().Return(nil)
 
 	before := time.Now()
-	underTest.Lock()
+	require.NoError(t, underTest.Lock())
 	duration := time.Since(before)
 
-	db.AssertExpectations(t)
-	require.True(t, duration > (900*time.Millisecond), "Expected to have waited at least 0.3 secs between each retry, total wait time: %s", duration)
+	require.True(t, duration > 900*time.Millisecond, "Expected to have waited at least 0.3 secs between each retry, total wait time: %s", duration)
+}
+
+func TestLockCutoff(t *testing.T) {
+	underTest, db := newMockedMutex()
+	defer db.AssertExpectations(t)
+	underTest.ReattemptWait = 300 * time.Millisecond
+	underTest.Cutoff = 100 * time.Millisecond
+
+	db.OnAcquire().Twice().Return(ErrLocked)
+
+	before := time.Now()
+	err := underTest.Lock()
+	duration := time.Since(before)
+
+	require.EqualError(t, err, "reached cutoff time")
+	require.True(t, duration > 300*time.Millisecond, "Expected to have waited at least 0.3 secs between each retry, total wait time: %s", duration)
 }
 
 func TestUnlock(t *testing.T) {
-	db := new(mocks.DBer)
-	underTest := NewMutex(VALID_MUTEX_NAME, VALID_MUTEX_TTL, db, VALID_MUTEX_RETRY_WAIT)
+	underTest, db := newMockedMutex()
+	defer db.AssertExpectations(t)
 
-	db.On("Delete", VALID_MUTEX_NAME).Return(nil)
+	db.OnDelete().Return(nil)
 
 	underTest.Unlock()
-	db.AssertExpectations(t)
 }
 
 func TestUnlockGivesUpAfterThreeAttempts(t *testing.T) {
-	db := new(mocks.DBer)
-	underTest := NewMutex(VALID_MUTEX_NAME, VALID_MUTEX_TTL, db, VALID_MUTEX_RETRY_WAIT)
+	underTest, db := newMockedMutex()
+	defer db.AssertExpectations(t)
 
-	db.On("Delete", VALID_MUTEX_NAME).Times(3).Return(errors.New("DynamoDB is down!"))
+	db.OnDelete().Times(3).Return(errors.New("DynamoDB is down!"))
 
 	underTest.Unlock()
-	db.AssertExpectations(t)
-}
-
-func TestPruneExpired(t *testing.T) {
-	db := new(mocks.DBer)
-	underTest := NewMutex(VALID_MUTEX_NAME, VALID_MUTEX_TTL, db, VALID_MUTEX_RETRY_WAIT)
-
-	db.On("Get", VALID_MUTEX_NAME).Return(&models.Item{Name: VALID_MUTEX_NAME, Created: VALID_MUTEX_CREATED}, nil)
-	db.On("Delete", VALID_MUTEX_NAME).Return(nil)
-
-	underTest.PruneExpired()
-	db.AssertExpectations(t)
-}
-
-func TestPruneExpiredError(t *testing.T) {
-	db := new(mocks.DBer)
-	underTest := NewMutex(VALID_MUTEX_NAME, VALID_MUTEX_TTL, db, VALID_MUTEX_RETRY_WAIT)
-
-	db.On("Get", VALID_MUTEX_NAME).Return((*models.Item)(nil), errors.New("Get Error"))
-
-	underTest.PruneExpired()
-	db.AssertExpectations(t)
 }
