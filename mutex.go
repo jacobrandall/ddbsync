@@ -4,7 +4,6 @@
 
 // Package ddbsync provides DynamoDB-backed synchronization primitives such
 // as mutual exclusion locks. This package is designed to behave like pkg/sync.
-
 package ddbsync
 
 import (

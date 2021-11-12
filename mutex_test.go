@@ -12,25 +12,25 @@ import (
 )
 
 const (
-	VALID_MUTEX_NAME       = "mut-test"
-	VALID_MUTEX_TTL        = 4 * time.Second
-	VALID_MUTEX_CREATED    = 1424385592
-	VALID_MUTEX_RETRY_WAIT = 1 * time.Millisecond
+	ValidMutexName      = "mut-test"
+	ValidMutexTTL       = 4 * time.Second
+	ValidMutexCreated   = 1424385592
+	ValidMutexRetryWait = 1 * time.Millisecond
 )
 
 var dynamoInternalErr = awserr.New(
 	dynamodb.ErrCodeInternalServerError,
 	"Dynamo Internal Server Error",
-	errors.New("Dynamo Internal Server Error"),
+	errors.New("dynamodb Internal Server Error"),
 )
 
 type mockDB struct{ mock.Mock }
 
 func (m *mockDB) OnAcquire() *mock.Call {
-	return m.On("Acquire", VALID_MUTEX_NAME, VALID_MUTEX_TTL)
+	return m.On("Acquire", ValidMutexName, ValidMutexTTL)
 }
 func (m *mockDB) OnDelete() *mock.Call {
-	return m.On("Delete", VALID_MUTEX_NAME)
+	return m.On("Delete", ValidMutexName)
 }
 func (m *mockDB) Acquire(name string, ttl time.Duration) error {
 	return m.Called(name, ttl).Error(0)
@@ -41,18 +41,20 @@ func (m *mockDB) Delete(name string) error {
 
 func newMockedMutex() (*Mutex, *mockDB) {
 	db := &mockDB{}
-	mutex := NewMutex(VALID_MUTEX_NAME, VALID_MUTEX_TTL, db)
-	mutex.ReattemptWait = VALID_MUTEX_RETRY_WAIT
+	mutex := NewMutex(ValidMutexName, ValidMutexTTL, db)
+	mutex.ReattemptWait = ValidMutexRetryWait
 	return mutex, db
 }
 
 func TestNew(t *testing.T) {
+	t.Parallel()
 	underTest, _ := newMockedMutex()
-	require.Equal(t, VALID_MUTEX_NAME, underTest.Name)
-	require.Equal(t, VALID_MUTEX_TTL, underTest.TTL)
+	require.Equal(t, ValidMutexName, underTest.Name)
+	require.Equal(t, ValidMutexTTL, underTest.TTL)
 }
 
 func TestLock(t *testing.T) {
+	t.Parallel()
 	underTest, db := newMockedMutex()
 	defer db.AssertExpectations(t)
 
@@ -62,13 +64,14 @@ func TestLock(t *testing.T) {
 }
 
 func TestLockWaitsBeforeRetrying(t *testing.T) {
+	t.Parallel()
 	underTest, db := newMockedMutex()
 	defer db.AssertExpectations(t)
 	underTest.ReattemptWait = 300 * time.Millisecond
 
 	db.OnAcquire().Once().Return(ErrLocked)
 	db.OnAcquire().Once().Return(dynamoInternalErr)
-	db.OnAcquire().Once().Return(errors.New("Dynamo Glitch"))
+	db.OnAcquire().Once().Return(errors.New("dynamodb glitch"))
 	db.OnAcquire().Once().Return(nil)
 
 	before := time.Now()
@@ -79,6 +82,7 @@ func TestLockWaitsBeforeRetrying(t *testing.T) {
 }
 
 func TestLockCutoff(t *testing.T) {
+	t.Parallel()
 	underTest, db := newMockedMutex()
 	defer db.AssertExpectations(t)
 	underTest.ReattemptWait = 300 * time.Millisecond
@@ -95,6 +99,7 @@ func TestLockCutoff(t *testing.T) {
 }
 
 func TestUnlock(t *testing.T) {
+	t.Parallel()
 	underTest, db := newMockedMutex()
 	defer db.AssertExpectations(t)
 
@@ -104,10 +109,11 @@ func TestUnlock(t *testing.T) {
 }
 
 func TestUnlockGivesUpAfterThreeAttempts(t *testing.T) {
+	t.Parallel()
 	underTest, db := newMockedMutex()
 	defer db.AssertExpectations(t)
 
-	db.OnDelete().Times(3).Return(errors.New("DynamoDB is down!"))
+	db.OnDelete().Times(3).Return(errors.New("dynamodb is down"))
 
 	underTest.Unlock()
 }

@@ -21,12 +21,14 @@ type Database struct {
 }
 
 func NewDatabase(tableName string, region string, endpoint string, disableSSL bool) *Database {
+	cfg := aws.Config{
+		Endpoint:   &endpoint,
+		Region:     &region,
+		DisableSSL: &disableSSL,
+	}
+	sess := session.Must(session.NewSession(&cfg))
 	return &Database{
-		client: dynamodb.New(session.New(&aws.Config{
-			Endpoint:   &endpoint,
-			Region:     &region,
-			DisableSSL: &disableSSL,
-		})),
+		client:    dynamodb.New(sess),
 		tableName: tableName,
 	}
 }

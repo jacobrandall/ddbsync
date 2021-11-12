@@ -8,6 +8,7 @@ import (
 )
 
 func TestNewLock(t *testing.T) {
+	t.Parallel()
 	const (
 		name      = "mut-test"
 		ttl       = 4 * time.Second
@@ -15,13 +16,12 @@ func TestNewLock(t *testing.T) {
 		cutoff    = 6 * time.Second
 	)
 	var (
-		require = require.New(t)
-		ls      = &LockService{}
-		m       = ls.NewLock(name, ttl, retryWait, cutoff)
+		ls = &LockService{}
+		m  = ls.NewLock(name, ttl, retryWait, cutoff)
 	)
-	require.NotNil(m)
-	require.IsType(&Mutex{}, m)
-	require.Equal(&Mutex{
+	require.NotNil(t, m)
+	require.IsType(t, &Mutex{}, m)
+	require.Equal(t, &Mutex{
 		Name:          name,
 		TTL:           ttl,
 		ReattemptWait: retryWait,

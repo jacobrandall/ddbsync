@@ -11,9 +11,9 @@ import (
 )
 
 const (
-	DB_VALID_TABLE_NAME = "TestLockTable"
-	DB_VALID_NAME       = "db-name"
-	DB_VALID_TTL        = 30 * time.Second
+	DBValidTableName = "TestLockTable"
+	DBValidName      = "db-name"
+	DBValidTTL       = 30 * time.Second
 )
 
 type mockDynamo struct {
@@ -31,28 +31,31 @@ func (m mockDynamo) DeleteItem(*dynamodb.DeleteItemInput) (*dynamodb.DeleteItemO
 }
 
 func newMockedClient(mocked mockDynamo) *Database {
-	return &Database{client: mocked, tableName: DB_VALID_TABLE_NAME}
+	return &Database{client: mocked, tableName: DBValidTableName}
 }
 
 func TestDBPut(t *testing.T) {
+	t.Parallel()
 	db := newMockedClient(mockDynamo{
 		UpdateItemOutput: &dynamodb.UpdateItemOutput{},
 	})
 
-	err := db.Acquire(DB_VALID_NAME, DB_VALID_TTL)
+	err := db.Acquire(DBValidName, DBValidTTL)
 	assert.NoError(t, err)
 }
 
 func TestDBPutError(t *testing.T) {
+	t.Parallel()
 	db := newMockedClient(mockDynamo{
 		UpdateItemError: errors.New("UpdateItem Error"),
 	})
 
-	err := db.Acquire(DB_VALID_NAME, DB_VALID_TTL)
+	err := db.Acquire(DBValidName, DBValidTTL)
 	assert.Error(t, err)
 }
 
 func TestDBPutErrorLocked(t *testing.T) {
+	t.Parallel()
 	db := newMockedClient(mockDynamo{
 		UpdateItemError: awserr.New(
 			dynamodb.ErrCodeConditionalCheckFailedException,
@@ -60,24 +63,26 @@ func TestDBPutErrorLocked(t *testing.T) {
 			errors.New("failed")),
 	})
 
-	err := db.Acquire(DB_VALID_NAME, DB_VALID_TTL)
+	err := db.Acquire(DBValidName, DBValidTTL)
 	assert.Error(t, err)
 }
 
 func TestDBDelete(t *testing.T) {
+	t.Parallel()
 	db := newMockedClient(mockDynamo{
 		DeleteItemOutput: &dynamodb.DeleteItemOutput{},
 	})
 
-	err := db.Delete(DB_VALID_NAME)
+	err := db.Delete(DBValidName)
 	assert.NoError(t, err)
 }
 
 func TestDBDeleteError(t *testing.T) {
+	t.Parallel()
 	db := newMockedClient(mockDynamo{
-		DeleteItemError: errors.New("DeleteItem Error"),
+		DeleteItemError: errors.New("dynamodb DeleteItem error"),
 	})
 
-	err := db.Delete(DB_VALID_NAME)
+	err := db.Delete(DBValidName)
 	assert.Error(t, err)
 }
