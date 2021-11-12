@@ -8,7 +8,6 @@ containerInfo:
       AWS_SECRET_ACCESS_KEY: 1
 jobs:
   build:
-    workdir: "/go/src/github.com/zencoder/ddbsync"
     steps:
       - checkout
       - restore_cache:
@@ -31,3 +30,8 @@ jobs:
           command: make cover
       - store_artifacts:
           path: coverage/
+experimental:
+  notify:
+    branches:
+      only:
+        - master
