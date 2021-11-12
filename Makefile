@@ -5,28 +5,27 @@ endif
 
 ifdef VERBOSE
 V = -v
+X = -x
 else
 .SILENT:
 endif
 
 all: build test cover
 
-install-deps:
-	glide install
 build:
-	mkdir -p bin
-	go build -v -o bin/ddbsync
+	GOBIN=$(shell pwd)/bin go install ./...
+
 fmt:
-	go fmt ./...
+	go fmt $(X) ./...
+	go mod tidy $(V)
+
 test:
 	mkdir -p coverage
-	go test $(V) ./ -race -cover -coverprofile=$(COVERAGEDIR)/ddbsync.coverprofile
+	go test $(V) -race -cover -coverprofile=$(COVERAGEDIR)/ddbsync.coverprofile ./...
+
 cover:
 	go tool cover -html=$(COVERAGEDIR)/ddbsync.coverprofile -o $(COVERAGEDIR)/ddbsync.html
-coveralls:
-	gover $(COVERAGEDIR) $(COVERAGEDIR)/coveralls.coverprofile
-	goveralls -coverprofile=$(COVERAGEDIR)/coveralls.coverprofile -service=circle-ci -repotoken=$(COVERALLS_TOKEN)
+
 clean:
-	go clean
-	rm -f bin/ddbsync
-	rm -rf coverage/
+	rm -rf bin/ coverage/
+	go clean -i $(X) -cache -testcache
