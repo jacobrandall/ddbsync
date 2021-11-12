@@ -1,5 +1,5 @@
 ---
-version: 2
+version: 2.1
 executorType: docker
 containerInfo:
   - image: library/golang
@@ -12,22 +12,22 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-        key: go-mod-cache-{{ checksum "go.sum" }}
+          key: go-mod-cache-{{ checksum "go.sum" }}
       - run:
-        name: Download vendored Go dependencies
-        command: go mod download
+          name: Download vendored Go dependencies
+          command: go mod download
       - save_cache:
-        key: go-mod-cache-{{ checksum "go.sum" }}
-        paths:
-          - /go/pkg/mod
+          key: go-mod-cache-{{ checksum "go.sum" }}
+          paths:
+            - /go/pkg/mod
       - run:
-        name: Build
-        command: make build
+          name: Build
+          command: make build
       - run:
-        name: Test
-        command: make test
+          name: Test
+          command: make test
       - run:
-        name: Produce coverage report
-        command: make cover
+          name: Produce coverage report
+          command: make cover
       - store_artifacts:
-        path: coverage/
+          path: coverage/
