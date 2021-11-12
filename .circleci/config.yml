@@ -2,37 +2,32 @@
 version: 2
 executorType: docker
 containerInfo:
-- image: library/golang
-  environment:
-    AWS_ACCESS_KEY_ID: 1
-    AWS_SECRET_ACCESS_KEY: 1
+  - image: library/golang
+    environment:
+      AWS_ACCESS_KEY_ID: 1
+      AWS_SECRET_ACCESS_KEY: 1
 jobs:
   build:
     workdir: "/go/src/github.com/zencoder/ddbsync"
     steps:
-    - checkout
-    - restore_cache:
+      - checkout
+      - restore_cache:
         key: go-mod-cache-{{ checksum "go.sum" }}
-    - run:
+      - run:
         name: Download vendored Go dependencies
         command: go mod download
-    - save_cache:
+      - save_cache:
         key: go-mod-cache-{{ checksum "go.sum" }}
         paths:
-        - /go/pkg/mod
-    - run:
-        name: Install required tooling
-        command: |
-          go get golang.org/x/tools/cmd/cover
-          go get github.com/mattn/goveralls
-          go get github.com/modocache/gover
-    - run:
-        name: Run unit tests
+          - /go/pkg/mod
+      - run:
+        name: Build
+        command: make build
+      - run:
+        name: Test
         command: make test
-    - run:
-        name: Collect coverage reports
+      - run:
+        name: Produce coverage report
         command: make cover
-    - run:
-        name: Submit coverage to coveralls.io
-        command: make coveralls
-
+      - store_artifacts:
+        path: coverage/
