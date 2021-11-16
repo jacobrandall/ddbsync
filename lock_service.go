@@ -1,12 +1,17 @@
 package ddbsync
 
 import (
-	"sync"
 	"time"
 )
 
+// ErrLocker is version of sync.Locker but returns an error
+type ErrLocker interface {
+	Lock() error
+	Unlock()
+}
+
 type LockServicer interface {
-	NewLock(string, int64, time.Duration) sync.Locker
+	NewLock(string, time.Duration, time.Duration, time.Duration) ErrLocker
 }
 
 type LockService struct {
@@ -22,6 +27,9 @@ func NewLockService(tableName string, region string, endpoint string, disableSSL
 }
 
 // Create a new Lock/Mutex with a particular key and timeout
-func (l *LockService) NewLock(name string, ttl int64, lockReattemptWait time.Duration) sync.Locker {
-	return NewMutex(name, ttl, l.db, lockReattemptWait)
+func (l *LockService) NewLock(name string, ttl, reattemptWait, cutoff time.Duration) ErrLocker {
+	mutex := NewMutex(name, ttl, l.db)
+	mutex.ReattemptWait = reattemptWait
+	mutex.Cutoff = cutoff
+	return mutex
 }

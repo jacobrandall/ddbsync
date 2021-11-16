@@ -1,36 +1,26 @@
-COVERAGEDIR = coverage
-ifdef CIRCLE_ARTIFACTS
-  COVERAGEDIR = $(CIRCLE_ARTIFACTS)
-endif
-
 ifdef VERBOSE
 V = -v
+X = -x
 else
 .SILENT:
 endif
 
 all: build test cover
 
-install-deps:
-	glide install
 build:
-	mkdir -p bin
-	go build -v -o bin/ddbsync
+	GOBIN=$(shell pwd)/bin go install $(V) ./...
+
 fmt:
-	go fmt ./...
+	go fmt $(X) ./...
+	go mod tidy $(V)
+
 test:
 	mkdir -p coverage
-	go test $(V) ./ -race -cover -coverprofile=$(COVERAGEDIR)/ddbsync.coverprofile
+	go test $(V) -race -cover -coverprofile=coverage/ddbsync.coverprofile ./...
+
 cover:
-	go tool cover -html=$(COVERAGEDIR)/ddbsync.coverprofile -o $(COVERAGEDIR)/ddbsync.html
-coveralls:
-	gover $(COVERAGEDIR) $(COVERAGEDIR)/coveralls.coverprofile
-	goveralls -coverprofile=$(COVERAGEDIR)/coveralls.coverprofile -service=circle-ci -repotoken=$(COVERALLS_TOKEN)
+	go tool cover -html=coverage/ddbsync.coverprofile -o coverage/ddbsync.html
+
 clean:
-	go clean
-	rm -f bin/ddbsync
-	rm -rf coverage/
-gen-mocks:
-	mockery -name AWSDynamoer
-	mockery -name DBer
-	mockery -name LockServicer
+	rm -rf bin/ coverage/
+	go clean -i $(X) -cache -testcache
